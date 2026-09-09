@@ -40,15 +40,8 @@ export async function PATCH(
     comment.text = text;
     comment.updatedAt = new Date().toISOString();
 
-    // Update in slug array
-    const comments = (await kv.get<Comment[]>(commentKeys.forSlug(comment.slug))) || [];
-    const index = comments.findIndex((c) => c.id === id);
-    if (index !== -1) {
-      comments[index] = comment;
-      await kv.set(commentKeys.forSlug(comment.slug), comments);
-    }
-
-    // Update by ID
+    // Update by ID only. The slug list stores ids, so there is no shared
+    // array to rewrite; this removes the read-modify-write on the slug key.
     await kv.set(commentKeys.byId(id), comment);
 
     return NextResponse.json({ success: true, comment });
@@ -82,12 +75,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // Remove from slug array
-    const comments = (await kv.get<Comment[]>(commentKeys.forSlug(comment.slug))) || [];
-    const filtered = comments.filter((c) => c.id !== id);
-    await kv.set(commentKeys.forSlug(comment.slug), filtered);
-
-    // Delete by ID
+    // Remove the id from the slug list atomically, then delete the record.
+    await kv.lrem(commentKeys.forSlug(comment.slug), 0, id);
     await kv.del(commentKeys.byId(id));
 
     return NextResponse.json({ success: true });

@@ -21,18 +21,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
     }
 
-    // Check if username exists
-    const existingUsername = await kv.get(userKeys.byUsername(username.toLowerCase()));
-    if (existingUsername) {
-      return NextResponse.json({ error: "Username already taken" }, { status: 409 });
-    }
-
-    // Check if email exists
-    const existingEmail = await kv.get<User>(userKeys.byEmail(email));
-    if (existingEmail) {
-      return NextResponse.json({ error: "Email already registered" }, { status: 409 });
-    }
-
     // Create user
     const id = crypto.randomUUID();
     const passwordHash = await bcrypt.hash(password, 10);
@@ -44,8 +32,24 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    await kv.set(userKeys.byEmail(email), user);
-    await kv.set(userKeys.byUsername(username.toLowerCase()), id);
+    const normalizedUsername = username.toLowerCase();
+
+    // Reserve email and username atomically via SET NX. A concurrent signup
+    // with the same email or username gets null back here and a 409 instead
+    // of both passing the old check-then-set gap.
+    const emailReservation = await kv.set<User>(userKeys.byEmail(email), user, { nx: true });
+    if (emailReservation === null) {
+      return NextResponse.json({ error: "Email already registered" }, { status: 409 });
+    }
+
+    const usernameReservation = await kv.set<string>(userKeys.byUsername(normalizedUsername), id, { nx: true });
+    if (usernameReservation === null) {
+      // Release the email reservation so a later retry with a different
+      // username can still register this email.
+      await kv.del(userKeys.byEmail(email));
+      return NextResponse.json({ error: "Username already taken" }, { status: 409 });
+    }
+
     await kv.set(userKeys.byId(id), user);
 
     // Create session

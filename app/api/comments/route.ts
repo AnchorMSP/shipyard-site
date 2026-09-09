@@ -5,6 +5,25 @@ import { sessionOptions, SessionData } from "@/lib/auth";
 import { commentKeys } from "@/lib/kv-helpers";
 import { Comment } from "@/lib/types";
 
+async function getCommentsFromList(slug: string): Promise<Comment[]> {
+  const ids = await kv.lrange<string>(commentKeys.forSlug(slug), 0, -1);
+  if (!ids.length) return [];
+  const records = await kv.mget<Comment[]>(...ids.map((id) => commentKeys.byId(id)));
+  return records.filter((comment): comment is Comment => comment !== null);
+}
+
+async function appendCommentId(slug: string, id: string): Promise<void> {
+  const key = commentKeys.forSlug(slug);
+  // If a legacy JSON-array key is still present, migrate it to a list of ids
+  // in place before appending, so existing comments survive the format change.
+  if ((await kv.type(key)) === "string") {
+    const legacy = (await kv.get<Comment[]>(key)) || [];
+    const ids = legacy.map((comment) => comment.id);
+    await kv.set(key, ids);
+  }
+  await kv.rpush(key, id);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const slug = request.nextUrl.searchParams.get("slug");
@@ -12,8 +31,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Slug required" }, { status: 400 });
     }
 
-    const comments = (await kv.get<Comment[]>(commentKeys.forSlug(slug))) || [];
-    // Sort newest first
+    // The slug key is a Redis list of comment ids in the current format, but
+    // keys written before this change hold a JSON array. Read both so legacy
+    // data stays visible while writes migrate it to the list format.
+    const keyType = await kv.type(commentKeys.forSlug(slug));
+    if (keyType === 'none') {
+      return NextResponse.json({ comments: [] });
+    }
+
+    const comments =
+      keyType === 'list'
+        ? await getCommentsFromList(slug)
+        : (await kv.get<Comment[]>(commentKeys.forSlug(slug))) || [];
+
     comments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return NextResponse.json({ comments });
@@ -53,10 +83,9 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    // Append to array
-    const comments = (await kv.get<Comment[]>(commentKeys.forSlug(slug))) || [];
-    comments.push(comment);
-    await kv.set(commentKeys.forSlug(slug), comments);
+    // Append the id to the per-slug list atomically, then store the record.
+    // rpush is atomic, so concurrent posts can no longer clobber each other.
+    await appendCommentId(slug, id);
     await kv.set(commentKeys.byId(id), comment);
 
     return NextResponse.json({ success: true, comment });
