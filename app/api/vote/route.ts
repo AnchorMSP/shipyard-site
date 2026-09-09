@@ -1,16 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { kv } from '@vercel/kv'
 
-interface Vote {
-  slug: string
-  vote: 'like' | 'dislike'
-  timestamp: string
-  ip: string
-  userAgent: string
-  country?: string
-  city?: string
-}
-
 async function getVotesForSlug(slug: string): Promise<{ likes: number; dislikes: number }> {
   try {
     const likes = await kv.get<number>(`votes:${slug}:likes`) || 0
@@ -26,14 +16,6 @@ async function incrementVote(slug: string, voteType: 'like' | 'dislike'): Promis
   await kv.incr(key)
 }
 
-async function saveVoteLog(vote: Vote): Promise<void> {
-  try {
-    await kv.lpush('votes:log', vote)
-  } catch (error) {
-    console.error('Failed to log vote:', error)
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -43,27 +25,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
-    // Get IP and user agent
-    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
-    const userAgent = request.headers.get('user-agent') || 'unknown'
-
-    // Get geo data from Vercel headers
-    const country = request.headers.get('x-vercel-ip-country')
-    const city = request.headers.get('x-vercel-ip-city')
-
-    const voteLog: Vote = {
-      slug,
-      vote,
-      timestamp: new Date().toISOString(),
-      ip,
-      userAgent,
-      ...(country && { country }),
-      ...(city && { city }),
-    }
-
-    // Increment counter and save log
+    // Increment counter
     await incrementVote(slug, vote)
-    await saveVoteLog(voteLog)
 
     // Return updated counts
     const counts = await getVotesForSlug(slug)
