@@ -45,29 +45,7 @@ export class GitManager {
       // Commit
       await this.git.commit(message)
 
-      // Configure remote URL with PAT if provided
-      if (this.githubPAT) {
-        const remotes = await this.git.getRemotes(true)
-        const origin = remotes.find(r => r.name === 'origin')
-
-        if (origin && origin.refs.push) {
-          // Extract repo info and rebuild URL with PAT
-          const match = origin.refs.push.match(/github\.com[:/](.+?)\.git/)
-          if (match) {
-            const repoPath = match[1]
-            const authUrl = `https://${this.githubPAT}@github.com/${repoPath}.git`
-            await this.git.remote(['set-url', 'origin', authUrl])
-          }
-        }
-      }
-
-      // Push with timeout
-      await Promise.race([
-        this.git.push(),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Push timeout')), 30000)
-        ),
-      ])
+      await this.pushWithAuth()
 
       new Notice('Published to Shipyard ✓')
     } catch (error) {
@@ -76,12 +54,40 @@ export class GitManager {
       // Retry once
       try {
         console.log('Retrying push...')
-        await this.git.push()
+        await this.pushWithAuth()
         new Notice('Published to Shipyard ✓')
       } catch (retryError) {
         new Notice('Error: Failed to push to Git. Check console for details.')
         throw retryError
       }
     }
+  }
+
+  // Push using in-memory PAT auth for this invocation only. The remote's
+  // configured URL is left untouched so the token never persists in .git/config.
+  private async pushWithAuth(): Promise<void> {
+    const branch = await this.git.revparse(['--abbrev-ref', 'HEAD'])
+    const authUrl = await this.getAuthPushUrl()
+    const push = authUrl
+      ? this.git.push(authUrl, branch)
+      : this.git.push()
+
+    await Promise.race([
+      push,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Push timeout')), 30000)
+      ),
+    ])
+  }
+
+  private async getAuthPushUrl(): Promise<string | undefined> {
+    if (!this.githubPAT) return undefined
+
+    const remotes = await this.git.getRemotes(true)
+    const origin = remotes.find(r => r.name === 'origin')
+    const match = origin?.refs.push?.match(/github\.com[:/](.+?)\.git/)
+    if (!match) return undefined
+
+    return `https://${this.githubPAT}@github.com/${match[1]}.git`
   }
 }
