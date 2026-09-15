@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { kv } from '@vercel/kv'
+import { allowRequest, clientIp } from '@/lib/rate-limit'
 
 interface Vote {
   slug: string
@@ -36,11 +37,22 @@ async function saveVoteLog(vote: Vote): Promise<void> {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!(await allowRequest(request, 'vote'))) {
+      return NextResponse.json({ error: 'Too many votes, please slow down' }, { status: 429 })
+    }
+
     const body = await request.json()
     const { slug, vote } = body
 
     if (!slug || !vote || !['like', 'dislike'].includes(vote)) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    }
+
+    // One vote per slug per visitor, server-side; the client localStorage check is bypassable
+    const dedupeKey = `vote:dedupe:${slug}:${clientIp(request)}`
+    const firstVote = await kv.set(dedupeKey, 1, { nx: true, ex: 604800 })
+    if (firstVote === null) {
+      return NextResponse.json({ error: 'Already voted' }, { status: 409 })
     }
 
     // Get IP and user agent

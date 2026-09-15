@@ -3,6 +3,7 @@ import { kv } from "@vercel/kv";
 import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/auth";
 import { commentKeys } from "@/lib/kv-helpers";
+import { allowRequest, allowUserRequest } from "@/lib/rate-limit";
 import { Comment } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -30,6 +31,10 @@ export async function POST(request: NextRequest) {
 
     if (!session.userId || !session.username) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    if (!(await allowRequest(request, "comment")) || !(await allowUserRequest(session.userId, "comment"))) {
+      return NextResponse.json({ error: "Too many comments, please slow down" }, { status: 429 });
     }
 
     const { slug, text } = await request.json();
