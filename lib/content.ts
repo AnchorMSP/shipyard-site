@@ -22,10 +22,24 @@ function calculateReadingTime(content: string): number {
 }
 
 async function parseMarkdownFile(filePath: string, slug: string): Promise<ContentItem | null> {
-  const fileContents = await fs.readFile(filePath, 'utf8')
-  const { data, content } = matter(fileContents)
+  let fileContents: string
+  try {
+    fileContents = await fs.readFile(filePath, 'utf8')
+  } catch (error) {
+    throw new Error(`Unable to read content file ${filePath}: ${(error as Error).message}`)
+  }
 
-  const meta = data as ContentMeta
+  let parsed: ReturnType<typeof matter>
+  try {
+    parsed = matter(fileContents)
+  } catch (error) {
+    // An unparseable frontmatter block is a real fault, not "no content"; surface it
+    // instead of letting it silently drop the file (and the rest of its category).
+    throw new Error(`Unable to parse frontmatter in ${filePath}: ${(error as Error).message}`)
+  }
+
+  const meta = parsed.data as ContentMeta
+  const content = parsed.content
 
   if (!meta.published) {
     return null
@@ -46,30 +60,39 @@ async function parseMarkdownFile(filePath: string, slug: string): Promise<Conten
   }
 }
 
+// Lists one category directory. A missing directory is an expected state (not every
+// category has content yet) and yields null; any other failure propagates so it is
+// not mistaken for an empty category.
+async function readCategory(category: string): Promise<string[] | null> {
+  const categoryPath = path.join(contentDirectory, category)
+  try {
+    return await fs.readdir(categoryPath)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null
+    }
+    throw error
+  }
+}
+
 export async function getAllContent(): Promise<ContentItem[]> {
   const categories = ['essays', 'notes', 'creative']
   const allContent: ContentItem[] = []
 
   for (const category of categories) {
-    const categoryPath = path.join(contentDirectory, category)
+    const files = await readCategory(category)
+    if (!files) continue
 
-    try {
-      const files = await fs.readdir(categoryPath)
+    for (const filename of files) {
+      if (!filename.endsWith('.md')) continue
 
-      for (const filename of files) {
-        if (!filename.endsWith('.md')) continue
+      const slug = slugFromFilename(filename)
+      const filePath = path.join(contentDirectory, category, filename)
+      const item = await parseMarkdownFile(filePath, slug)
 
-        const slug = slugFromFilename(filename)
-        const filePath = path.join(categoryPath, filename)
-        const item = await parseMarkdownFile(filePath, slug)
-
-        if (item) {
-          allContent.push(item)
-        }
+      if (item) {
+        allContent.push(item)
       }
-    } catch (error) {
-      // Category directory doesn't exist yet, skip
-      continue
     }
   }
 
@@ -83,21 +106,16 @@ export async function getContentBySlug(slug: string): Promise<ContentItem | null
   const categories = ['essays', 'notes', 'creative']
 
   for (const category of categories) {
-    const categoryPath = path.join(contentDirectory, category)
+    const files = await readCategory(category)
+    if (!files) continue
 
-    try {
-      const files = await fs.readdir(categoryPath)
+    for (const filename of files) {
+      const fileSlug = slugFromFilename(filename)
 
-      for (const filename of files) {
-        const fileSlug = slugFromFilename(filename)
-
-        if (fileSlug === slug) {
-          const filePath = path.join(categoryPath, filename)
-          return await parseMarkdownFile(filePath, slug)
-        }
+      if (fileSlug === slug) {
+        const filePath = path.join(contentDirectory, category, filename)
+        return await parseMarkdownFile(filePath, slug)
       }
-    } catch (error) {
-      continue
     }
   }
 

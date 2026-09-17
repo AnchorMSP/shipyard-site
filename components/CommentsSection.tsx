@@ -29,24 +29,40 @@ export default function CommentsSection({ slug }: CommentsSectionProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [loading, setLoading] = useState(false)
+  const [commentsError, setCommentsError] = useState(false)
+  const [userError, setUserError] = useState(false)
 
   const fetchComments = async () => {
     try {
       const res = await fetch(`/api/comments?slug=${slug}`)
+      // A failed request is not "no comments"; keep the last known list and surface
+      // the failure so the reader can retry.
+      if (!res.ok) {
+        throw new Error(`Comments request failed with status ${res.status}`)
+      }
       const data = await res.json()
       setComments(data.comments || [])
+      setCommentsError(false)
     } catch (err) {
       console.error('Failed to fetch comments:', err)
+      setCommentsError(true)
     }
   }
 
   const fetchUser = async () => {
     try {
       const res = await fetch('/api/auth/me')
+      // A failed session check is not "signed out"; do not present a fault as the
+      // logged-out state.
+      if (!res.ok) {
+        throw new Error(`Session request failed with status ${res.status}`)
+      }
       const data = await res.json()
       setUser(data.user)
+      setUserError(false)
     } catch (err) {
-      setUser(null)
+      console.error('Failed to fetch session:', err)
+      setUserError(true)
     }
   }
 
@@ -158,6 +174,18 @@ export default function CommentsSection({ slug }: CommentsSectionProps) {
             </button>
           </div>
         </form>
+      ) : userError ? (
+        <div className="mb-6 p-4 bg-brand-tan/10 rounded">
+          <p className="font-body text-sm text-brand-gray text-center">
+            Could not load your sign-in status.
+            <button
+              onClick={fetchUser}
+              className="ml-2 text-brand-sage hover:text-brand-tan transition-colors"
+            >
+              Retry
+            </button>
+          </p>
+        </div>
       ) : (
         <div className="mb-6 p-4 bg-brand-tan/10 rounded">
           <p className="font-body text-sm text-brand-gray text-center">
@@ -167,7 +195,17 @@ export default function CommentsSection({ slug }: CommentsSectionProps) {
       )}
 
       <div className="space-y-4">
-        {comments.length === 0 ? (
+        {commentsError && comments.length === 0 ? (
+          <p className="font-body text-sm text-brand-gray italic">
+            Could not load comments.
+            <button
+              onClick={fetchComments}
+              className="ml-2 not-italic text-brand-sage hover:text-brand-tan transition-colors"
+            >
+              Retry
+            </button>
+          </p>
+        ) : comments.length === 0 ? (
           <p className="font-body text-sm text-brand-gray italic">No comments yet</p>
         ) : (
           comments.map((comment) => (
