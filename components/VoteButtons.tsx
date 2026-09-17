@@ -15,11 +15,15 @@ export default function VoteButtons({ slug }: VoteButtonsProps) {
   useEffect(() => {
     const fetchCounts = () => {
       fetch(`/api/vote?slug=${slug}`)
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error(`Vote counts request failed: ${res.status}`)
+          return res.json()
+        })
         .then(data => {
           setLikes(data.likes || 0)
           setDislikes(data.dislikes || 0)
         })
+        // Leave the last known counts in place on failure; an error is not a count of zero.
         .catch(() => {})
     }
 
