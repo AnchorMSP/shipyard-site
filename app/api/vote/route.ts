@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { kv } from '@vercel/kv'
+import { getContentBySlug } from '@/lib/content'
 
 interface Vote {
   slug: string
@@ -39,8 +40,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { slug, vote } = body
 
-    if (!slug || !vote || !['like', 'dislike'].includes(vote)) {
+    if (typeof slug !== 'string' || !slug || slug.length > 200 || !['like', 'dislike'].includes(vote)) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    }
+
+    // The slug becomes part of a KV key name (`votes:<slug>:likes|dislikes`),
+    // and kv.incr creates the key when it is missing. Only slugs of published
+    // articles may be voted on; otherwise any anonymous caller can create a
+    // persistent key in the app's only data store for every string it invents.
+    if (!(await getContentBySlug(slug))) {
+      return NextResponse.json({ error: 'Unknown slug' }, { status: 404 })
     }
 
     // Get IP and user agent
