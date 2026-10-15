@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ user: null });
   } catch (error) {
+    // A failure to read the session must not be reported as "not signed in"; that
+    // would turn a runtime fault into a fabricated logged-out state.
     console.error("Auth check error:", error);
-    return NextResponse.json({ user: null });
+    return NextResponse.json({ error: "Failed to check session" }, { status: 500 });
   }
 }
