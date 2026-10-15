@@ -23,19 +23,17 @@ export default function VoteButtons({ slug }: VoteButtonsProps) {
         .catch(() => {})
     }
 
-    // Load counts on mount
+    // Load counts once when the article mounts. The counts do not need
+    // sub-minute freshness on a personal writing site, and a fixed-interval
+    // poll is an uncached, unauthenticated serverless read against Vercel KV,
+    // so an open tab must not keep generating load.
     fetchCounts()
-
-    // Poll for updates every 10 seconds for live counts
-    const interval = setInterval(fetchCounts, 10000)
 
     // Check if user already voted (localStorage)
     const storedVote = localStorage.getItem(`vote_${slug}`)
     if (storedVote) {
       setVoted(storedVote as 'like' | 'dislike')
     }
-
-    return () => clearInterval(interval)
   }, [slug])
 
   const handleVote = async (vote: 'like' | 'dislike') => {
