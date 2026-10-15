@@ -4,6 +4,7 @@ import matter from 'gray-matter'
 import { remark } from 'remark'
 import html from 'remark-html'
 import type { ContentMeta, ContentItem } from './types'
+import { logger } from './logger'
 
 const contentDirectory = path.join(process.cwd(), 'content')
 
@@ -69,6 +70,9 @@ export async function getAllContent(): Promise<ContentItem[]> {
       }
     } catch (error) {
       // Category directory doesn't exist yet, skip
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        logger.error('Failed to load content category', { category, error })
+      }
       continue
     }
   }
@@ -97,6 +101,9 @@ export async function getContentBySlug(slug: string): Promise<ContentItem | null
         }
       }
     } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        logger.error('Failed to read content category', { category, slug, error })
+      }
       continue
     }
   }

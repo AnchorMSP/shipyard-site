@@ -5,6 +5,7 @@ import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/auth";
 import { userKeys } from "@/lib/kv-helpers";
 import { User } from "@/lib/types";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error("Login error:", error);
+    logger.error("Login failed", { error });
     return NextResponse.json({ error: "Login failed" }, { status: 500 });
   }
 }

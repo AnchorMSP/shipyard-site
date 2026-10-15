@@ -5,8 +5,10 @@ import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/auth";
 import { userKeys } from "@/lib/kv-helpers";
 import { User } from "@/lib/types";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
+  let id: string | undefined;
   try {
     const { username, email, password } = await request.json();
 
@@ -34,10 +36,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user
-    const id = crypto.randomUUID();
+    const newId = crypto.randomUUID();
+    id = newId;
     const passwordHash = await bcrypt.hash(password, 10);
     const user: User = {
-      id,
+      id: newId,
       username,
       email,
       passwordHash,
@@ -58,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error("Signup error:", error);
+    logger.error("Signup failed", { userId: id, error });
     return NextResponse.json({ error: "Signup failed" }, { status: 500 });
   }
 }

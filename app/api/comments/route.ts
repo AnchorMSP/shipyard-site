@@ -4,10 +4,12 @@ import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/auth";
 import { commentKeys } from "@/lib/kv-helpers";
 import { Comment } from "@/lib/types";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
+  let slug: string | null = null;
   try {
-    const slug = request.nextUrl.searchParams.get("slug");
+    slug = request.nextUrl.searchParams.get("slug");
     if (!slug) {
       return NextResponse.json({ error: "Slug required" }, { status: 400 });
     }
@@ -18,21 +20,25 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ comments });
   } catch (error) {
-    console.error("Get comments error:", error);
+    logger.error("Failed to fetch comments", { slug, error });
     return NextResponse.json({ error: "Failed to fetch comments" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
+  let slug: string | undefined;
+  let userId: string | undefined;
   try {
     const response = NextResponse.json({});
     const session = await getIronSession<SessionData>(request, response, sessionOptions);
+    userId = session.userId;
 
     if (!session.userId || !session.username) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { slug, text } = await request.json();
+    const { slug: bodySlug, text } = await request.json();
+    slug = bodySlug;
 
     // Validate
     if (!slug || typeof slug !== "string") {
@@ -61,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, comment });
   } catch (error) {
-    console.error("Post comment error:", error);
+    logger.error("Failed to post comment", { slug, userId, error });
     return NextResponse.json({ error: "Failed to post comment" }, { status: 500 });
   }
 }

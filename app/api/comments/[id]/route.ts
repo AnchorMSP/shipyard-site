@@ -4,15 +4,19 @@ import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/auth";
 import { commentKeys } from "@/lib/kv-helpers";
 import { Comment } from "@/lib/types";
+import { logger } from "@/lib/logger";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let id: string | undefined;
+  let userId: string | undefined;
   try {
-    const { id } = await params;
+    id = (await params).id;
     const response = NextResponse.json({});
     const session = await getIronSession<SessionData>(request, response, sessionOptions);
+    userId = session.userId;
 
     if (!session.userId) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -53,7 +57,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, comment });
   } catch (error) {
-    console.error("Update comment error:", error);
+    logger.error("Failed to update comment", { commentId: id, userId, error });
     return NextResponse.json({ error: "Failed to update comment" }, { status: 500 });
   }
 }
@@ -62,10 +66,13 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let id: string | undefined;
+  let userId: string | undefined;
   try {
-    const { id } = await params;
+    id = (await params).id;
     const response = NextResponse.json({});
     const session = await getIronSession<SessionData>(request, response, sessionOptions);
+    userId = session.userId;
 
     if (!session.userId) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -92,7 +99,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Delete comment error:", error);
+    logger.error("Failed to delete comment", { commentId: id, userId, error });
     return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 });
   }
 }

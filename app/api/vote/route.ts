@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { kv } from '@vercel/kv'
+import { logger } from '@/lib/logger'
 
 interface Vote {
   slug: string
@@ -17,6 +18,7 @@ async function getVotesForSlug(slug: string): Promise<{ likes: number; dislikes:
     const dislikes = await kv.get<number>(`votes:${slug}:dislikes`) || 0
     return { likes, dislikes }
   } catch (error) {
+    logger.error('Failed to read vote counts', { slug, error })
     return { likes: 0, dislikes: 0 }
   }
 }
@@ -30,14 +32,17 @@ async function saveVoteLog(vote: Vote): Promise<void> {
   try {
     await kv.lpush('votes:log', vote)
   } catch (error) {
-    console.error('Failed to log vote:', error)
+    logger.error('Failed to log vote', { slug: vote.slug, error })
   }
 }
 
 export async function POST(request: NextRequest) {
+  let slug: string | undefined
+  let vote: 'like' | 'dislike' | undefined
   try {
     const body = await request.json()
-    const { slug, vote } = body
+    slug = body.slug
+    vote = body.vote
 
     if (!slug || !vote || !['like', 'dislike'].includes(vote)) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
@@ -69,15 +74,16 @@ export async function POST(request: NextRequest) {
     const counts = await getVotesForSlug(slug)
     return NextResponse.json(counts)
   } catch (error) {
-    console.error('Vote error:', error)
+    logger.error('Failed to record vote', { slug, vote, error })
     return NextResponse.json({ error: 'Failed to record vote' }, { status: 500 })
   }
 }
 
 export async function GET(request: NextRequest) {
+  let slug: string | null = null
   try {
     const { searchParams } = new URL(request.url)
-    const slug = searchParams.get('slug')
+    slug = searchParams.get('slug')
 
     if (!slug) {
       return NextResponse.json({ error: 'Missing slug' }, { status: 400 })
@@ -86,7 +92,7 @@ export async function GET(request: NextRequest) {
     const counts = await getVotesForSlug(slug)
     return NextResponse.json(counts)
   } catch (error) {
-    console.error('Get votes error:', error)
+    logger.error('Failed to get votes', { slug, error })
     return NextResponse.json({ error: 'Failed to get votes' }, { status: 500 })
   }
 }
