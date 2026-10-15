@@ -108,7 +108,13 @@ See [obsidian-plugin/README.md](obsidian-plugin/README.md) for detailed installa
 
 ### Environment
 
-No environment variables required. The site is fully static.
+`SESSION_SECRET` is required for account and comment features: it seals the session cookie and must be at least 32 characters. Generate one and set it in the Vercel project (Production, Preview, and Development):
+
+```
+openssl rand -base64 32
+```
+
+The site fails to build or start without it, rather than serving errors to users.
 
 ## Customization
 
