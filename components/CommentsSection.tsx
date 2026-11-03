@@ -51,10 +51,11 @@ export default function CommentsSection({ slug }: CommentsSectionProps) {
   }
 
   useEffect(() => {
+    // Load once on mount; a 15s poll is an uncached, unauthenticated
+    // serverless read against Vercel KV. The list is refreshed on demand after
+    // the reader posts, edits or deletes a comment.
     fetchComments()
     fetchUser()
-    const interval = setInterval(fetchComments, 15000)
-    return () => clearInterval(interval)
   }, [slug])
 
   const handlePost = async (e: React.FormEvent) => {
