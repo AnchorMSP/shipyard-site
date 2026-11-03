@@ -4,10 +4,15 @@ import bcrypt from "bcryptjs";
 import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/auth";
 import { userKeys } from "@/lib/kv-helpers";
+import { allowRequest } from "@/lib/rate-limit";
 import { User } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   try {
+    if (!(await allowRequest(request, "login"))) {
+      return NextResponse.json({ error: "Too many login attempts, please try again later" }, { status: 429 });
+    }
+
     const { email, password } = await request.json();
 
     // Get user
