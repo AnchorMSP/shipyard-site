@@ -8,13 +8,23 @@ export interface SiteConfig {
 export function getSiteConfig(): SiteConfig {
   const configPath = path.join(process.cwd(), 'config', 'site.json')
 
+  let configFile: string
   try {
-    const configFile = fs.readFileSync(configPath, 'utf8')
-    return JSON.parse(configFile)
+    configFile = fs.readFileSync(configPath, 'utf8')
   } catch (error) {
-    // Return defaults if config doesn't exist
-    return {
-      backgroundMediaUrl: '',
+    // A missing config file is the only case that may fall back to defaults; a read
+    // failure must not silently drop the site's hero background.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return {
+        backgroundMediaUrl: '',
+      }
     }
+    throw error
+  }
+
+  try {
+    return JSON.parse(configFile) as SiteConfig
+  } catch (error) {
+    throw new Error(`Invalid site config at ${configPath}: ${(error as Error).message}`)
   }
 }
