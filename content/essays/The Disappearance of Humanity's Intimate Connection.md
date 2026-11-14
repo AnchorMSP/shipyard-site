@@ -8,7 +8,6 @@ excerpt: The Disappearance of Humanity's Intimate Connection
 tags:
   - Creative
 ---
-
 "Connection": The act of linking, joining, or associating two or more things, or the state of being related by physical, logical, or emotional ties.
 
 Why has connecting on an 'intimate' level as humans seem to have gotten more difficult? 
