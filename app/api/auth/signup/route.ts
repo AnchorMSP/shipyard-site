@@ -3,7 +3,7 @@ import { kv } from "@vercel/kv";
 import bcrypt from "bcryptjs";
 import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/auth";
-import { userKeys } from "@/lib/kv-helpers";
+import { normalizeEmail, userKeys } from "@/lib/kv-helpers";
 import { User } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
@@ -28,7 +28,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if email exists
-    const existingEmail = await kv.get<User>(userKeys.byEmail(email));
+    const normalizedEmail = normalizeEmail(email);
+    let existingEmail = await kv.get<User>(userKeys.byEmail(normalizedEmail));
+    if (!existingEmail && email !== normalizedEmail) {
+      // An account created before normalization may still live under the raw typed key.
+      existingEmail = await kv.get<User>(userKeys.byRawEmail(email));
+    }
     if (existingEmail) {
       return NextResponse.json({ error: "Email already registered" }, { status: 409 });
     }
@@ -39,21 +44,21 @@ export async function POST(request: NextRequest) {
     const user: User = {
       id,
       username,
-      email,
+      email: normalizedEmail,
       passwordHash,
       createdAt: new Date().toISOString(),
     };
 
-    await kv.set(userKeys.byEmail(email), user);
+    await kv.set(userKeys.byEmail(normalizedEmail), user);
     await kv.set(userKeys.byUsername(username.toLowerCase()), id);
     await kv.set(userKeys.byId(id), user);
 
     // Create session
-    const response = NextResponse.json({ success: true, user: { id, username, email } });
+    const response = NextResponse.json({ success: true, user: { id, username, email: normalizedEmail } });
     const session = await getIronSession<SessionData>(request, response, sessionOptions);
     session.userId = id;
     session.username = username;
-    session.email = email;
+    session.email = normalizedEmail;
     await session.save();
 
     return response;
