@@ -4,10 +4,15 @@ import bcrypt from "bcryptjs";
 import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/auth";
 import { userKeys } from "@/lib/kv-helpers";
+import { allowRequest } from "@/lib/rate-limit";
 import { User } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   try {
+    if (!(await allowRequest(request, "signup"))) {
+      return NextResponse.json({ error: "Too many accounts created, please try again later" }, { status: 429 });
+    }
+
     const { username, email, password } = await request.json();
 
     // Validate
@@ -21,16 +26,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
     }
 
-    // Check if username exists
+    // Check if username or email exists
     const existingUsername = await kv.get(userKeys.byUsername(username.toLowerCase()));
-    if (existingUsername) {
-      return NextResponse.json({ error: "Username already taken" }, { status: 409 });
-    }
-
-    // Check if email exists
     const existingEmail = await kv.get<User>(userKeys.byEmail(email));
-    if (existingEmail) {
-      return NextResponse.json({ error: "Email already registered" }, { status: 409 });
+    if (existingUsername || existingEmail) {
+      return NextResponse.json({ error: "Username or email already registered" }, { status: 409 });
     }
 
     // Create user
