@@ -3,6 +3,7 @@ import { kv } from "@vercel/kv";
 import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/auth";
 import { commentKeys } from "@/lib/kv-helpers";
+import { getContentBySlug } from "@/lib/content";
 import { Comment } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -35,11 +36,19 @@ export async function POST(request: NextRequest) {
     const { slug, text } = await request.json();
 
     // Validate
-    if (!slug || typeof slug !== "string") {
+    if (!slug || typeof slug !== "string" || slug.length > 200) {
       return NextResponse.json({ error: "Slug required" }, { status: 400 });
     }
     if (!text || typeof text !== "string" || text.length < 1 || text.length > 2000) {
       return NextResponse.json({ error: "Text must be 1-2000 characters" }, { status: 400 });
+    }
+
+    // The slug becomes part of a KV key name (`comments:<slug>`), and kv.set
+    // creates the key when it is missing. Only slugs of published articles may
+    // be commented on; otherwise any account can create a persistent key in the
+    // app's only data store for every string it invents.
+    if (!(await getContentBySlug(slug))) {
+      return NextResponse.json({ error: "Unknown slug" }, { status: 404 });
     }
 
     // Create comment
