@@ -21,6 +21,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 })
 
 export const metadata = {
+  metadataBase: new URL('https://www.theshipyard.cc'),
   title: 'The Shipyard',
   description: 'A writing space',
 }

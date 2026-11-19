@@ -6,6 +6,16 @@ import DonationButton from '@/components/DonationButton'
 import { getFeaturedContent } from '@/lib/content'
 import { getSiteConfig } from '@/lib/config'
 
+export const metadata = {
+  alternates: {
+    canonical: '/',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+}
+
 export default async function HomePage() {
   const featured = await getFeaturedContent()
   const config = getSiteConfig()
