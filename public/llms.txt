@@ -1,0 +1,31 @@
+# The Shipyard
+
+> The Shipyard is a writing space for humans to just be — a place for the weary traveler of the internet's endless passages to stop, learn, repair, and grow. It publishes essays and creative writing on ideas, identity, perception, technology, and the human condition.
+
+## Main Pages
+
+- [Basin](https://www.theshipyard.cc/basin): Complete archive of all published writing, filterable by type and tag.
+- [The Shipyard](https://www.theshipyard.cc/intro): Introduction to the idea behind The Shipyard — a yard where ships stop for maintenance, repair, and growth.
+
+## Essays
+
+- [The Importance of Boredom](https://www.theshipyard.cc/the-importance-of-boredom): Why boredom is humanity's mechanism for creativity.
+- [Currency of Dreams](https://www.theshipyard.cc/currency-of-dreams): On dreams as the true currency driving our innermost being.
+- [Abstractions](https://www.theshipyard.cc/abstractions): On living atop layers of knowledge we will never fully understand.
+- [You MUST Feel](https://www.theshipyard.cc/you-must-feel): On numbness, emotion, and allowing yourself to feel.
+- [3i](https://www.theshipyard.cc/3i): Idea, ideology, identity — and the movement between them.
+- [Creating Destruction](https://www.theshipyard.cc/creating-destruction): On creation, technology, and staying human.
+- [Nonsense to Corruption](https://www.theshipyard.cc/nonsense-to-corruption): On nonsense in the intellect and corruption in the will.
+- [Perception - Revolving](https://www.theshipyard.cc/perception---revolving): On how our perceptions shape and separate us.
+- [Dash Between The Dates](https://www.theshipyard.cc/dash-between-the-dates): On the journey of life between first breath and final close of eyes.
+- [Real Humanity](https://www.theshipyard.cc/real-humanity): On truth, correctness, and subjective reality.
+- [The Illusion of Correctness](https://www.theshipyard.cc/the-illusion-of-correctness): On the assumption that our own views are correct.
+
+## Creative Writing
+
+- [Observation Allows Existence](https://www.theshipyard.cc/observation-allows-existence): On individual observation creating reality.
+- [Consciousness - A Bridge](https://www.theshipyard.cc/consciousness---a-bridge): On consciousness and the human experience.
+- [Hopelessness](https://www.theshipyard.cc/hopelessness): On hopelessness and hope beyond the physical.
+- [Unspoken Superiority](https://www.theshipyard.cc/unspoken-superiority): On pride and our inner danger.
+- [Wisdom x Knowledge](https://www.theshipyard.cc/wisdom-x-knowledge): On knowing versus applying what we know.
+- [Us as Together](https://www.theshipyard.cc/us-as-together): On individual fragments of a collective existence.
